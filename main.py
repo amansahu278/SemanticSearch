@@ -28,24 +28,25 @@ if __name__ == "__main__":
 
     query = "What does the speaker think about bret of frie 2?"
     # Use keyword extraction for better input to the BM25 model. Look into Yake.
-    # keywords_list = extract_keywords(query)
+    keywords_list = extract_keywords(query)
     # keywords_list = [query]
     # print(keywords_list)
     # BM25 extraction
     relevant_docs = []
-    # for keywords in keywords_list:
-    #     retrieved_docs = bm25_retriever.invoke(keywords[0])
-    #     # print(retrieved_docs, type(retrieved_docs), len(retrieved_docs))
-    #     relevant_docs.append(doc for doc in retrieved_docs)
+    for keywords in keywords_list:
+        retrieved_docs = bm25_retriever.invoke(keywords[0])
+        # print(retrieved_docs, type(retrieved_docs), len(retrieved_docs))
+        relevant_docs.append(doc for doc in retrieved_docs)
 
     # # FAISS retrieval
     retrieved_docs = faiss_retriever.invoke(query)
-    print(retrieved_docs, type(retrieved_docs), len(retrieved_docs))
-    # relevant_docs.append(doc for doc in retrieved_docs)
+    relevant_docs.extend(doc for doc in retrieved_docs)
     # # print(relevant_docs)
 
     combined_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+    print("Context is: ", combined_text)
     summary = summarize(combined_text, query)
+
 
     print(f"\n📝 Answer:\n{summary}")
     for doc in retrieved_docs:

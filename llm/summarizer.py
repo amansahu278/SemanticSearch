@@ -18,5 +18,8 @@ def _load_summarizer(model="llama-3.1-8b-instant"):
 
     Respond clearly and briefly. Be detailed in your approach, maybe citing what the speaker had said."""
     )
+    print("Query is: ", """Given the query: '<>', summarize appropriately based on the following text: <>
+
+    Respond clearly and briefly. Be detailed in your approach, maybe citing what the speaker had said.""")
     chain = prompt | llm | StrOutputParser()
     return chain
