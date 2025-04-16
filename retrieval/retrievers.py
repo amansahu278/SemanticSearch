@@ -6,14 +6,21 @@ from langchain_community.vectorstores import FAISS
 
 from preprocessing.chunking import chunks_to_docs
 
+from logging import getLogger
+logger = getLogger(__name__)
+
 def build_bm25_retriever(chunks, k=5):
+  logger.info("Initializing BM25 retriever")
   docs = chunks_to_docs(chunks)
   retriever = BM25Retriever.from_documents(docs)
   retriever.k = k
   return retriever
 
 def build_deep_retriever(chunks, vector_store, embeddings, k=5):
+  logger.info("Initializing FAISS retriever")
   docs = chunks_to_docs(chunks)
+
+  logger.info("Populating index")
   vectordb = vector_store.from_documents(docs, embeddings)
   retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={'k': k, 'score_threshold': 0.7})
   return retriever

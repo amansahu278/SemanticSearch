@@ -1,10 +1,14 @@
 from config import CHUNK_OVERLAP, CHUNK_SIZE
 from langchain.schema.document import Document
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 def chunk_sentences(sentences, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
     """
         Creating chunks from sentences
     """
+    logger.debug(f"Creating chunks of {chunk_size} sentences with overlap of {overlap} sentences")
     chunks = []
     for i in range(0, len(sentences), chunk_size):
         segment = sentences[max(0, i-overlap):min(len(sentences)-1, i+chunk_size+overlap)]

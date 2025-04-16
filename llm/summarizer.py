@@ -14,12 +14,17 @@ def _load_summarizer(model="llama-3.1-8b-instant"):
     llm = ChatGroq(model=model, temperature=0)
     prompt = PromptTemplate(
     input_variables=["context", "query"],
-    template="""Given the query: '{query}', summarize appropriately based on the following text: {context}
+    template="""
+    You are a summarizion assistant. 
+    You are given a query and a context. 
+    The context is a collection of ASR transcripts. Your task is to summarize the context based on the query.
+    You should focus on the most relevant parts of the context that answer the query.
+    You should not include any information that is not relevant to the query.
+    You should not include any information that is not in the context.
+
+    Given the query: '{query}', answer appropriately based on the following text: {context}
 
     Respond clearly and briefly. Be detailed in your approach, maybe citing what the speaker had said."""
     )
-    print("Query is: ", """Given the query: '<>', summarize appropriately based on the following text: <>
-
-    Respond clearly and briefly. Be detailed in your approach, maybe citing what the speaker had said.""")
     chain = prompt | llm | StrOutputParser()
     return chain
