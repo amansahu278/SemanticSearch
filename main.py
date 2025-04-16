@@ -10,6 +10,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
 
+from transformers import AutoTokenizer
+import tiktoken
 # import sys, os
 # sys.path.append(os.path.abspath("/home/user/code/pwesuite"))
 
@@ -24,7 +26,7 @@ logger = getLogger(__name__)
 def get_args():
     parser = argparse.ArgumentParser(description="Semantic Search Script")
     parser.add_argument("--filepath", type=str, required=True, help="Path to the ASR file")
-    parser.add_argument("--query", type=str, required=True, help="Query for semantic search")
+    parser.add_argument("--query", type=str, help="Query for semantic search")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     return parser.parse_args()
 
@@ -32,20 +34,26 @@ def load_and_process_asr(filepath):
     # Load ASR data
     asr_data = load_asr(filepath, word=True)
     sentences = segment_sentences(asr_data)
-    chunks = chunk_sentences(sentences)
+    chunks = chunk_sentences(sentences, 20, 10)
+    logger.debug(f"Number of chunks: {len(chunks)}")
+
     return chunks
 
 def initialize_retrievers(chunks):
     # BM25 retriever initialization
-    bm25_retriever = build_bm25_retriever(chunks, k=20)
+    bm25_retriever = build_bm25_retriever(chunks, k=10)
 
     # FAISS retriever initialization
     embedding_model = HuggingFaceEmbeddings(model_name='intfloat/multilingual-e5-large-instruct')
-    faiss_retriever = build_deep_retriever(chunks, FAISS, embedding_model, k=30)
+    faiss_retriever = build_deep_retriever(chunks, FAISS, embedding_model, k=30, index_path="faiss_index")
 
     return bm25_retriever, faiss_retriever
 
 def retrieve_and_summarize(query, bm25_retriever, faiss_retriever):
+    # Load tokenizer 
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B-instruct")
+    # tokenizer = tiktoken.encoding_for_model("gpt-4")
+
     # Use keyword extraction for better input to the BM25 model. Look into Yake.
     keywords_list = extract_keywords(query)
     logger.debug(f"Keywords extracted: {keywords_list}")
@@ -55,13 +63,18 @@ def retrieve_and_summarize(query, bm25_retriever, faiss_retriever):
     for keywords in keywords_list:
         retrieved_docs = bm25_retriever.invoke(keywords[0])
         relevant_docs.extend(doc for doc in retrieved_docs)
-
+    logger.info(f"Number of documents: {len(relevant_docs)}")
     # FAISS retrieval
     retrieved_docs = faiss_retriever.invoke(query)
     relevant_docs.extend(doc for doc in retrieved_docs)
 
     combined_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
     logger.debug("Context is: %s", combined_text)
+
+    num_tokens = len(tokenizer.encode(combined_text))
+    logger.info(f"Number of documents: {len(relevant_docs)}")
+    logger.info(f"Number of tokens in context: {num_tokens}")
+
     summary = summarize(combined_text, query)
 
     logger.info(f"\n📝 Answer:\n{summary}")
@@ -97,9 +110,12 @@ if __name__ == "__main__":
     # With the keyword extraction, better not to use the ensemble retriever
     # ensemble_retriever = build_ensemble_retriever(bm25_retriever, faiss_retriever)
 
-    while True:
-        query = input("Enter your query (or type 'exit' to quit): ").strip()
-        if query.lower() == 'exit':
-            print("Exiting the program.")
-            break
+    if query:
         retrieve_and_summarize(query, bm25_retriever, faiss_retriever)
+    else: 
+        while True:
+            query = input("Enter your query (or type 'exit' to quit): ").strip()
+            if query.lower() == 'exit':
+                print("Exiting the program.")
+                break
+            retrieve_and_summarize(query, bm25_retriever, faiss_retriever)
