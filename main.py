@@ -12,6 +12,8 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 
 from transformers import AutoTokenizer
 import tiktoken
+
+from config import CHUNK_SIZE, CHUNK_OVERLAP
 # import sys, os
 # sys.path.append(os.path.abspath("/home/user/code/pwesuite"))
 
@@ -30,32 +32,32 @@ def get_args():
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     return parser.parse_args()
 
-def load_and_process_asr(filepath):
+def load_and_process_asr(filepath, chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP):
     # Load ASR data
     asr_data = load_asr(filepath, word=True)
     sentences = segment_sentences(asr_data)
-    chunks = chunk_sentences(sentences, 20, 10)
+    chunks = chunk_sentences(sentences, chunk_size, chunk_overlap)
     logger.debug(f"Number of chunks: {len(chunks)}")
 
     return chunks
 
-def initialize_retrievers(chunks):
+def initialize_retrievers(chunks, idx_name="faiss_index", top_bm25=5, top_faiss=10):
     # BM25 retriever initialization
-    bm25_retriever = build_bm25_retriever(chunks, k=10)
+    bm25_retriever = build_bm25_retriever(chunks, k=top_bm25)
 
     # FAISS retriever initialization
     embedding_model = HuggingFaceEmbeddings(model_name='intfloat/multilingual-e5-large-instruct')
-    faiss_retriever = build_deep_retriever(chunks, FAISS, embedding_model, k=30, index_path="faiss_index")
+    faiss_retriever = build_deep_retriever(chunks, FAISS, embedding_model, k=top_faiss, index_name=idx_name)
 
     return bm25_retriever, faiss_retriever
 
-def retrieve_and_summarize(query, bm25_retriever, faiss_retriever):
+def retrieve_and_summarize(query, bm25_retriever, faiss_retriever, top_keywords=1):
     # Load tokenizer 
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B-instruct")
     # tokenizer = tiktoken.encoding_for_model("gpt-4")
 
     # Use keyword extraction for better input to the BM25 model. Look into Yake.
-    keywords_list = extract_keywords(query)
+    keywords_list = extract_keywords(query, top=top_keywords)
     logger.debug(f"Keywords extracted: {keywords_list}")
 
     # BM25 extraction
@@ -103,9 +105,9 @@ if __name__ == "__main__":
 
     # Load and process ASR data
     chunks = load_and_process_asr(filepath)
-
+    
     # Initialize retrievers
-    bm25_retriever, faiss_retriever = initialize_retrievers(chunks)
+    bm25_retriever, faiss_retriever = initialize_retrievers(chunks, idx_name=filepath.split('/')[-1].split('.')[0])
     
     # With the keyword extraction, better not to use the ensemble retriever
     # ensemble_retriever = build_ensemble_retriever(bm25_retriever, faiss_retriever)

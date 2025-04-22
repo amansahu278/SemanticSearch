@@ -10,4 +10,6 @@ __pycache__/
 __pypackages__/
 .DS_Store
 
+faiss_index/
+
 *.log
