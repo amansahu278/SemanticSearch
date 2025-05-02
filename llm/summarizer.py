@@ -6,15 +6,17 @@ from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
+
 def summarize(context, query, model="llama-3.1-8b-instant"):
     chain = _load_summarizer(model)
     return chain.invoke({"context": context, "query": query})
 
+
 def _load_summarizer(model="llama-3.1-8b-instant"):
     llm = ChatGroq(model=model, temperature=0)
     prompt = PromptTemplate(
-    input_variables=["context", "query"],
-    template="""
+        input_variables=["context", "query"],
+        template="""
     You are a question answer assistant. 
     You are given a query and a context. 
     The context is a collection of ASR transcripts. Your task is to answer the query based on the context.
@@ -24,7 +26,7 @@ def _load_summarizer(model="llama-3.1-8b-instant"):
 
     Given the query: '{query}', answer appropriately based on the following text: {context}
 
-    Respond clearly. Be detailed in your approach, maybe citing what the speaker had said."""
+    Respond clearly. Be detailed in your approach, maybe citing what the speaker had said.""",
     )
     chain = prompt | llm | StrOutputParser()
     return chain
